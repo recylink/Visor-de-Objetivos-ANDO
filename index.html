@@ -554,7 +554,17 @@ const VAL_DATA = {};
 // Store para metas editadas en vivo (empId → {mes → valor})
 const METAS_VAL_STORE = {};
 function getMetaMes(empId, mes){
-  return METAS_VAL_STORE[empId]?.[mes] ?? VAL_DATA[empId]?.meta?.[mes] ?? null;
+  const manual = METAS_VAL_STORE[empId]?.[mes];
+  if(manual!=null) return manual;
+  // Si no hay meta exacta para este mes, usar la última meta cargada hasta este mes
+  // (las metas suelen mantenerse constantes; puede que aún no se haya llenado el
+  // mes más reciente en el Sheet).
+  const vd = VAL_DATA[empId];
+  if(!vd) return null;
+  const idxHasta = MESES.indexOf(mes);
+  const ms = MESES.slice(0, idxHasta+1).filter(m=>vd.meta?.[m]!=null);
+  const u = ms[ms.length-1];
+  return u!==undefined ? vd.meta[u] : null;
 }
 function setMetaMes(empId, mes, val){
   if(!METAS_VAL_STORE[empId]) METAS_VAL_STORE[empId]={};
@@ -1514,7 +1524,7 @@ function renderObjetivos(emp){
   let cumplen=0, evaluables=0;
   EMPRESAS.forEach(e=>{
     const vd = VAL_DATA[e.id];
-    const meta = vd?.meta?.[mesActual];
+    const meta = getMetaMes(e.id, mesActual);
     if(meta==null) return;
     const ac = acumuladoHasta_(vd, mesActual);
     if(ac===null) return;
