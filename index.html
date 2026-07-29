@@ -2265,7 +2265,11 @@ function cargarDatos(esRefrescoSilencioso){
   };
 
   const scriptTag = document.createElement("script");
-  scriptTag.src = DATA_SOURCE_URL + "?callback=" + callbackName + "&_=" + Date.now();
+  // Si el link tiene ?suc=<id>, se lo pasamos al Apps Script para que
+  // filtre en el servidor y solo devuelva esa sucursal (links externos).
+  const sucFiltro = new URLSearchParams(window.location.search).get("suc");
+  const sufijoSuc = sucFiltro ? "&suc=" + encodeURIComponent(sucFiltro) : "";
+  scriptTag.src = DATA_SOURCE_URL + "?callback=" + callbackName + sufijoSuc + "&_=" + Date.now();
   scriptTag.onerror = function(){
     delete window[callbackName];
     mostrarEstadoCarga_("No se pudo contactar la fuente de datos. Reintentando en " + REFRESH_MINUTOS + " min.");
