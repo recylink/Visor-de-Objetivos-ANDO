@@ -1773,6 +1773,95 @@ function renderValorizacion(emp){
 }
 
 // ============================================================
+// COSTO - INGRESO (alimentado desde la pestaña "Costo e Ingreso", agregado
+// 2026-09-03 a pedido del usuario)
+// ============================================================
+function renderCostoIngreso(emp){
+  const ci = emp.costoIngreso || {};
+  const mesData = ci[mesActual] || { residuos:[], totales:{totalKg:0,costoTotal:0,ingresoTotal:0,neto:0} };
+  const mesesHasta = MESES.slice(0, MESES.indexOf(mesActual)+1);
+
+  let acumCosto=0, acumIngreso=0, acumNeto=0;
+  mesesHasta.forEach(m=>{
+    const d = ci[m];
+    if(d && d.totales){ acumCosto+=d.totales.costoTotal||0; acumIngreso+=d.totales.ingresoTotal||0; acumNeto+=d.totales.neto||0; }
+  });
+
+  function money(n){ return "$"+Math.round(n||0).toLocaleString("es-CL"); }
+  function netoColor(v){ return v>0?"#039855":v<0?"#F04438":"var(--g400)"; }
+
+  const filas = (mesData.residuos||[]).slice().sort((a,b)=>b.neto-a.neto);
+
+  return `
+    <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;">
+      <div class="kpi">
+        <div class="kpi-lbl">Costo ${mesActual}</div>
+        <div class="kpi-val" style="color:#F04438">${money(mesData.totales.costoTotal)}</div>
+        <div class="kpi-desc">${mesData.totales.totalKg?Math.round(mesData.totales.totalKg).toLocaleString('es-CL')+' kg gestionados':'Sin datos'}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Ingreso ${mesActual}</div>
+        <div class="kpi-val" style="color:#039855">${money(mesData.totales.ingresoTotal)}</div>
+        <div class="kpi-desc">Venta de residuos valorizados</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Neto ${mesActual}</div>
+        <div class="kpi-val" style="color:${netoColor(mesData.totales.neto)}">${money(mesData.totales.neto)}</div>
+        <div class="kpi-desc">Ingreso &minus; Costo</div>
+      </div>
+      <div class="kpi" style="background:var(--g50);">
+        <div class="kpi-lbl" style="color:var(--g400);">Acumulado a ${mesActual}</div>
+        <div class="kpi-val" style="color:${netoColor(acumNeto)};font-size:20px;">${money(acumNeto)}</div>
+        <div class="kpi-desc">Enero a ${mesActual} &middot; Ingreso ${money(acumIngreso)} / Costo ${money(acumCosto)}</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Costo e ingreso por residuo &middot; ${emp.sucursal}</div>
+          <div class="card-sub">${mesActual} &middot; ${filas.length} residuo${filas.length===1?'':'s'} con movimiento</div>
+        </div>
+      </div>
+      ${!filas.length ? `<div style="padding:28px 16px;text-align:center;color:var(--g400);font-size:12px;">Sin datos de costo/ingreso cargados para ${mesActual}.</div>` : `
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr style="background:var(--g50);">
+            <th style="padding:8px 14px;font-size:10px;font-weight:700;color:var(--tx2);text-align:left;border-bottom:1px solid var(--bd);">RESIDUO</th>
+            <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--tx2);text-align:right;border-bottom:1px solid var(--bd);">TOTAL KG</th>
+            <th style="padding:8px 12px;font-size:10px;font-weight:700;color:#F04438;text-align:right;border-bottom:1px solid var(--bd);">COSTO</th>
+            <th style="padding:8px 12px;font-size:10px;font-weight:700;color:#039855;text-align:right;border-bottom:1px solid var(--bd);">INGRESO</th>
+            <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--tx2);text-align:right;border-bottom:1px solid var(--bd);">NETO</th>
+          </tr></thead>
+          <tbody>
+            ${filas.map((f,i)=>`
+              <tr style="${i%2?'background:var(--g25);':''}">
+                <td style="padding:9px 14px;font-size:12px;font-weight:600;color:var(--g700);">${mnEscapeHtml(f.residuo)}</td>
+                <td style="padding:9px 12px;text-align:right;font-size:12px;color:var(--g600);">${Math.round(f.totalKg).toLocaleString('es-CL')}</td>
+                <td style="padding:9px 12px;text-align:right;font-size:12px;color:#F04438;">${money(f.costoTotal)}</td>
+                <td style="padding:9px 12px;text-align:right;font-size:12px;color:#039855;">${money(f.ingresoTotal)}</td>
+                <td style="padding:9px 12px;text-align:right;font-size:12px;font-weight:700;color:${netoColor(f.neto)};">${money(f.neto)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+          <tfoot>
+            <tr style="border-top:1.5px solid var(--bd);">
+              <td style="padding:9px 14px;font-size:11px;font-weight:700;color:var(--g700);">TOTAL ${mesActual}</td>
+              <td style="padding:9px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--g700);">${Math.round(mesData.totales.totalKg).toLocaleString('es-CL')}</td>
+              <td style="padding:9px 12px;text-align:right;font-size:11px;font-weight:700;color:#F04438;">${money(mesData.totales.costoTotal)}</td>
+              <td style="padding:9px 12px;text-align:right;font-size:11px;font-weight:700;color:#039855;">${money(mesData.totales.ingresoTotal)}</td>
+              <td style="padding:9px 12px;text-align:right;font-size:11px;font-weight:700;color:${netoColor(mesData.totales.neto)};">${money(mesData.totales.neto)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>`}
+      <div class="legend">
+        <div class="leg-item" style="font-size:10px;color:var(--g400);">Datos desde la pesta&ntilde;a "Costo e Ingreso" del Sheet &middot; Neto = Ingreso &minus; Costo</div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
 // RENDER PRINCIPAL
 // ============================================================
 function renderMain(){
@@ -1795,6 +1884,7 @@ function renderMain(){
   else if(vistaActual==="anual") vistaHTML = renderAnual(emp);
   else if(vistaActual==="obj")   vistaHTML = renderObjetivos(emp);
   else if(vistaActual==="val")   vistaHTML = renderValorizacion(emp);
+  else if(vistaActual==="costo") vistaHTML = renderCostoIngreso(emp);
 
   // Badge valorización: % del mes actual
   const pctValBadge = (()=>{
@@ -1849,6 +1939,9 @@ function renderMain(){
       <button class="vtab ${vistaActual==='val'?'active':''}" onclick="setVista('val')">
         ♻️ Valorización
         ${pctValBadge!==null?`<span class="vtab-badge">${pctValBadge}%</span>`:''}
+      </button>
+      <button class="vtab ${vistaActual==='costo'?'active':''}" onclick="setVista('costo')">
+        💰 Costo-Ingreso
       </button>
     </div>
     ${vistaHTML}
