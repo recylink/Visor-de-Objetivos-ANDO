@@ -823,10 +823,10 @@ function cellA(v, mes){
   return `<span class="cell-na2">—</span>`; // null = no aplica
 }
 
-// ---------- Seguimiento CSE editable (Correo / Reunión / Encuesta) ----------
+// ---------- Seguimiento CSE editable (Correo / Reunión / Charlas) ----------
 // Textos EXACTOS que espera leerCSE_() en el backend (mapAccion) — si no
 // coinciden letra por letra, el backend no reconoce la fila al releer.
-const CSE_ACCION_TXT = { correo: "Correo seguimiento", reunion: "Reunión seguimiento", encuesta: "Encuesta seguimiento" };
+const CSE_ACCION_TXT = { correo: "Correo seguimiento", reunion: "Reunión seguimiento", encuesta: "Charlas" };
 let cseDirtyEmpIds = new Set();
 let cseAutoSaveTimer = null;
 const CSE_AUTOSAVE_DELAY_MS = 1500;
@@ -1327,7 +1327,7 @@ function guardarPendiente(key){
 // modo: "mes" = solo mes actual | "anual" = todos los meses
 function renderCSE(emp, modo){
   modo = modo || "mes";
-  const keys = [{key:"correo",lbl:"Correo de seguimiento"},{key:"reunion",lbl:"Reunión de seguimiento"},{key:"encuesta",lbl:"Encuesta de seguimiento"}];
+  const keys = [{key:"correo",lbl:"Correo de seguimiento"},{key:"reunion",lbl:"Reunión de seguimiento"},{key:"encuesta",lbl:"Charlas"}];
   const meses = MESES; // todos los meses Ene-Dic, futuros como ·
 
   // % sobre las 3 acciones
