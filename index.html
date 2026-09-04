@@ -1687,6 +1687,23 @@ function renderObjetivos(emp){
   // tarjeta de Valorización NO es uno de los 4 objetivos reales de Ando, así
   // que no se muestra acá — sigue disponible en la pestaña "Valorización" del
   // visor (agregado 2026-09-03, a pedido del usuario).
+  //
+  // EXCEPCIÓN — "Generar sensibilización...": el backend solo la actualiza
+  // cuando la app principal hace un sync completo, así que marcar una
+  // "Charla" en este mismo visor no se reflejaba en la tarjeta al instante
+  // (a pedido del usuario, 2026-09-03: "hice click en una charla, pero no
+  // cambió el status del objetivo"). Se recalcula en vivo desde
+  // emp.cse.encuesta (los mismos datos que ya usa renderCSE, actualizados al
+  // toque por cseOnToggle) — mismo criterio que acompanamiento_anual en la
+  // app principal: OK si hubo al menos una Charla marcada en el año.
+  const encuestaData = (emp.cse && emp.cse.encuesta) || {};
+  const mesesCharla = mesesConDatos.filter(m => encuestaData[m] === true);
+  const sensibilizacionLive = {
+    avance: mesesCharla.length > 0 ? 100 : 0,
+    ok: mesesCharla.length > 0,
+    detalle: mesesCharla.length > 0 ? 'Charlas: ' + mesesCharla.join(', ') : 'No se registraron charlas'
+  };
+
   return `
     <div class="card">
       <div class="card-header">
@@ -1695,9 +1712,12 @@ function renderObjetivos(emp){
       </div>
       <div class="obj-grid">
         ${emp.objetivos.map(o=>{
-          const av = o.avance;
+          const live = /sensibiliza/i.test(o.texto) ? sensibilizacionLive : null;
+          const av = live ? live.avance : o.avance;
+          const ok = live ? live.ok : o.ok;
+          const detalle = live ? live.detalle : o.detalle;
           const pctBarra = av===null||av===undefined?0:Math.min(av,100);
-          const col = av===null||av===undefined?'var(--g300)':(o.ok===true?'#039855':o.ok===false?'#F04438':colorPct(av));
+          const col = av===null||av===undefined?'var(--g300)':(ok===true?'#039855':ok===false?'#F04438':colorPct(av));
           return `<div class="obj-item">
             <div class="obj-text">
               ${o.texto}
@@ -1708,9 +1728,9 @@ function renderObjetivos(emp){
                 <div class="prog-fill" style="width:${pctBarra}%;background:${col}"></div>
               </div>
               <span class="prog-lbl" style="color:${col};min-width:42px;text-align:right">${(av===null||av===undefined)?"—":av+"%"}</span>
-              ${o.ok===true?`<span class="badge b-ok">✓</span>`:o.ok===false?`<span class="badge b-falta">✗</span>`:""}
+              ${ok===true?`<span class="badge b-ok">✓</span>`:ok===false?`<span class="badge b-falta">✗</span>`:""}
             </div>
-            <div style="font-size:10px;color:var(--g400);margin-top:5px;">${o.detalle||''}</div>
+            <div style="font-size:10px;color:var(--g400);margin-top:5px;">${detalle||''}</div>
           </div>`;
         }).join("")}
       </div>
