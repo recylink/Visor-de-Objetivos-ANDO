@@ -1602,6 +1602,69 @@ function renderAnual(emp){
       </div>
     </div>
 
+    <!-- TARJETA 3: COSTO E INGRESO ANUAL (agregado 2026-09-03, a pedido del
+         usuario: "en vista anual, no se muestra el analisis de costo ingreso
+         del año, como se hace en abastible" — portado de Seguimiento-Abastible) -->
+    ${(()=>{
+      function money_(n){ return "$"+Math.round(n||0).toLocaleString("es-CL"); }
+      function netoColor_(v){ return v>0?"#039855":v<0?"#F04438":"var(--g400)"; }
+      const ci = emp.costoIngreso || {};
+      let acumCostoAnual=0, acumIngresoAnual=0, acumNetoAnual=0, algunDato=false;
+      meses.filter(m=>!esFuturoAnual(m)).forEach(m=>{
+        const d = ci[m];
+        if(d && d.totales){ acumCostoAnual+=d.totales.costoTotal||0; acumIngresoAnual+=d.totales.ingresoTotal||0; acumNetoAnual+=d.totales.neto||0; algunDato=true; }
+      });
+      function ciCell_(m, campo){
+        if(esFuturoAnual(m)) return `<td class="cell-fut">·</td>`;
+        const d = ci[m];
+        if(!d || !d.totales) return `<td style="color:var(--g300);font-size:11px">—</td>`;
+        const val = d.totales[campo]||0;
+        const col = campo==='neto' ? netoColor_(val) : (campo==='costoTotal'?'#F04438':'#039855');
+        return `<td style="text-align:center"><span style="font-size:11px;font-weight:700;color:${col}">${money_(val)}</span></td>`;
+      }
+      return `
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-header">
+          <div>
+            <div class="card-title" style="display:flex;align-items:center;gap:7px;">
+              <span style="width:8px;height:8px;border-radius:50%;background:#F79009;display:inline-block;"></span>
+              Costo e Ingreso · Vista anual
+            </div>
+            <div class="card-sub">Costo · Ingreso · Neto por mes · Enero → ${mesActual}</div>
+          </div>
+          <div class="prog-wrap">
+            <span class="prog-lbl" style="color:${algunDato?netoColor_(acumNetoAnual):'var(--g300)'};font-size:14px;">${algunDato?money_(acumNetoAnual):"—"}</span>
+          </div>
+        </div>
+        <div class="ann-wrap">
+          <table class="ann-table">
+            <thead><tr>
+              <th>Mes</th>${thMes}
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td style="font-size:11px;font-weight:600;color:var(--g700)">Costo</td>
+                ${meses.map(m=>ciCell_(m,'costoTotal')).join("")}
+              </tr>
+              <tr>
+                <td style="font-size:11px;font-weight:600;color:var(--g700)">Ingreso</td>
+                ${meses.map(m=>ciCell_(m,'ingresoTotal')).join("")}
+              </tr>
+              <tr style="background:var(--g50);">
+                <td style="font-size:11px;font-weight:700;color:var(--brand)">Neto</td>
+                ${meses.map(m=>ciCell_(m,'neto')).join("")}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="legend">
+          <div class="leg-item"><span style="color:var(--g300)">—</span> Sin datos</div>
+          <div class="leg-item"><span class="cell-fut">·</span> Mes futuro</div>
+          <div class="leg-item" style="margin-left:auto;font-size:10px;color:var(--g400);">Detalle por residuo en la pestaña "💰 Costo-Ingreso" · Acumulado = Enero → ${mesActual}</div>
+        </div>
+      </div>`;
+    })()}
+
     ${renderCSE(emp,"anual")}
   `;
 }
