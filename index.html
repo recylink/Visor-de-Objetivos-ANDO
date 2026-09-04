@@ -891,12 +891,34 @@ function dotCSEEditable(emp, key, mes){
   const txt = v===true ? "✓" : v===false ? "✗" : "—";
   return '<div class="cse-dot editable '+cls+'" title="Click para cambiar" onclick="cseOnToggle(\''+emp.id+'\',\''+key+'\',\''+mes+'\')">'+txt+'</div>';
 }
+// El objetivo "Generar sensibilización..." lo calcula normalmente la app
+// principal (leyendo "Charlas" de Seguimiento CSE) y solo se sincroniza acá
+// cuando esa app hace un sync completo — por eso marcar una Charla en este
+// visor no se reflejaba al instante en la tarjeta (a pedido del usuario,
+// 2026-09-03: "hice click en una charla, pero no cambió el status del
+// objetivo"). Se recalcula acá mismo, en emp.objetivos (no solo al
+// renderizar, para que también quede correcto en el badge de la pestaña y
+// en el informe PDF) desde emp.cse.encuesta — mismo criterio que
+// acompanamiento_anual en la app principal: OK si hubo al menos una Charla
+// marcada en CUALQUIER mes del año (no solo hasta el mes seleccionado en el
+// visor).
+function sincronizarObjetivoSensibilizacion_(emp){
+  const o = (emp.objetivos||[]).find(x => /sensibiliza/i.test(x.texto));
+  if(!o) return;
+  const encuestaData = (emp.cse && emp.cse.encuesta) || {};
+  const mesesCharla = MESES.filter(m => encuestaData[m] === true);
+  o.avance = mesesCharla.length > 0 ? 100 : 0;
+  o.ok = mesesCharla.length > 0;
+  o.detalle = mesesCharla.length > 0 ? 'Charlas: ' + mesesCharla.join(', ') : 'No se registraron charlas';
+}
+
 function cseOnToggle(empId, key, mes){
   const emp = EMPRESAS.find(e => e.id===empId);
   if(!emp) return;
   const v = emp.cse[key][mes];
   // vacío → SI → NO → vacío (deja volver a "sin dato" para corregir un click de más)
   emp.cse[key][mes] = v===true ? false : v===false ? undefined : true;
+  sincronizarObjetivoSensibilizacion_(emp);
   cseDirtyEmpIds.add(empId);
   clearTimeout(cseAutoSaveTimer);
   cseAutoSaveTimer = setTimeout(cseSaveAll, CSE_AUTOSAVE_DELAY_MS);
@@ -1688,22 +1710,10 @@ function renderObjetivos(emp){
   // que no se muestra acá — sigue disponible en la pestaña "Valorización" del
   // visor (agregado 2026-09-03, a pedido del usuario).
   //
-  // EXCEPCIÓN — "Generar sensibilización...": el backend solo la actualiza
-  // cuando la app principal hace un sync completo, así que marcar una
-  // "Charla" en este mismo visor no se reflejaba en la tarjeta al instante
-  // (a pedido del usuario, 2026-09-03: "hice click en una charla, pero no
-  // cambió el status del objetivo"). Se recalcula en vivo desde
-  // emp.cse.encuesta (los mismos datos que ya usa renderCSE, actualizados al
-  // toque por cseOnToggle) — mismo criterio que acompanamiento_anual en la
-  // app principal: OK si hubo al menos una Charla marcada en el año.
-  const encuestaData = (emp.cse && emp.cse.encuesta) || {};
-  const mesesCharla = mesesConDatos.filter(m => encuestaData[m] === true);
-  const sensibilizacionLive = {
-    avance: mesesCharla.length > 0 ? 100 : 0,
-    ok: mesesCharla.length > 0,
-    detalle: mesesCharla.length > 0 ? 'Charlas: ' + mesesCharla.join(', ') : 'No se registraron charlas'
-  };
-
+  // "Generar sensibilización..." ya viene recalculada en vivo en
+  // emp.objetivos (ver sincronizarObjetivoSensibilizacion_, llamada al
+  // cargar datos y cada vez que se toca una Charla) — acá se usa igual que
+  // los demás objetivos, sin lógica especial.
   return `
     <div class="card">
       <div class="card-header">
@@ -1712,12 +1722,9 @@ function renderObjetivos(emp){
       </div>
       <div class="obj-grid">
         ${emp.objetivos.map(o=>{
-          const live = /sensibiliza/i.test(o.texto) ? sensibilizacionLive : null;
-          const av = live ? live.avance : o.avance;
-          const ok = live ? live.ok : o.ok;
-          const detalle = live ? live.detalle : o.detalle;
+          const av = o.avance;
           const pctBarra = av===null||av===undefined?0:Math.min(av,100);
-          const col = av===null||av===undefined?'var(--g300)':(ok===true?'#039855':ok===false?'#F04438':colorPct(av));
+          const col = av===null||av===undefined?'var(--g300)':(o.ok===true?'#039855':o.ok===false?'#F04438':colorPct(av));
           return `<div class="obj-item">
             <div class="obj-text">
               ${o.texto}
@@ -1728,9 +1735,9 @@ function renderObjetivos(emp){
                 <div class="prog-fill" style="width:${pctBarra}%;background:${col}"></div>
               </div>
               <span class="prog-lbl" style="color:${col};min-width:42px;text-align:right">${(av===null||av===undefined)?"—":av+"%"}</span>
-              ${ok===true?`<span class="badge b-ok">✓</span>`:ok===false?`<span class="badge b-falta">✗</span>`:""}
+              ${o.ok===true?`<span class="badge b-ok">✓</span>`:o.ok===false?`<span class="badge b-falta">✗</span>`:""}
             </div>
-            <div style="font-size:10px;color:var(--g400);margin-top:5px;">${detalle||''}</div>
+            <div style="font-size:10px;color:var(--g400);margin-top:5px;">${o.detalle||''}</div>
           </div>`;
         }).join("")}
       </div>
@@ -2482,6 +2489,7 @@ function cargarDatos(esRefrescoSilencioso){
 
     EMPRESAS.length = 0;
     payload.EMPRESAS.forEach(e => EMPRESAS.push(e));
+    EMPRESAS.forEach(sincronizarObjetivoSensibilizacion_);
 
     Object.keys(VAL_DATA).forEach(k => delete VAL_DATA[k]);
     Object.assign(VAL_DATA, payload.VAL_DATA);
